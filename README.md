@@ -9,8 +9,8 @@
 ### VS Code（GitHub Copilot）
 
 ```bash
-mkdir -p .github/skills/tv
-cp SKILL.md .github/skills/tv/SKILL.md
+mkdir -p .copilot/skills/tv
+cp SKILL.md .copilot/skills/tv/SKILL.md
 ```
 
 或用户级安装：
