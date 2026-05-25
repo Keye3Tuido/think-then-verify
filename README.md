@@ -36,16 +36,21 @@ cp SKILL.md ~/.claude/skills/tv/SKILL.md
 
 ### Cursor
 
-Cursor 不支持 Skill，使用 Rules 代替。在 `.cursor/rules/tv.mdc` 中写入：
+Cursor 自 2.4 版本起支持 Agent Skills（[官方文档](https://cursor.com/docs/context/skills)）。
 
-```yaml
----
-alwaysApply: true
----
-
+```bash
+mkdir -p .cursor/skills/tv
+cp SKILL.md .cursor/skills/tv/SKILL.md
 ```
 
-后接 SKILL.md 的 body 内容。
+或用户级安装：
+
+```bash
+mkdir -p ~/.cursor/skills/tv
+cp SKILL.md ~/.cursor/skills/tv/SKILL.md
+```
+
+> Cursor 也兼容 `.agents/skills/` 目录。
 
 ### Kiro
 
@@ -59,6 +64,20 @@ cp SKILL.md .kiro/skills/tv/SKILL.md
 ```bash
 mkdir -p ~/.kiro/skills/tv
 cp SKILL.md ~/.kiro/skills/tv/SKILL.md
+```
+
+### DeepSeek TUI
+
+```bash
+mkdir -p .deepseek/skills/tv
+cp SKILL.md .deepseek/skills/tv/SKILL.md
+```
+
+或用户级安装：
+
+```bash
+mkdir -p ~/.deepseek/skills/tv
+cp SKILL.md ~/.deepseek/skills/tv/SKILL.md
 ```
 
 ## 使用
