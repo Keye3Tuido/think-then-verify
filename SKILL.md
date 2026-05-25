@@ -44,7 +44,7 @@ description: 在每个 user→assistant 回合开始时自动加载。对任何�
 
 #### 降级策略：tasks.md 单文档辅助
 
-当环境不支持 task list 时（如 Kiro Vibe 模式、DeepSeek TUI、纯对话终端等），agent 创建 `.tv/tasks.md` 作为**临时文件**辅助驱动流程，一次性列出全部任务条目（Think #1 ~ Decide #3 + Output）。
+当环境不支持 task list 时（如 Kiro Vibe 模式、DeepSeek TUI、纯对话终端等），agent 创建 `.tv/tasks.md` 作为**临时文件**辅助驱动流程，一次性列出全部任务条目（Think #1 ~ Decide #3 + Output）。每完成或跳过一个任务时，必须**在辅助文档中同步标记对应任务**。
 
 `.tv/tasks.md` 是临时文件——每次需要创建时直接覆盖旧文件即可，无需保留历史内容。
 
