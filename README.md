@@ -82,4 +82,4 @@ cp SKILL.md ~/.deepseek/skills/tv/SKILL.md
 
 ## 使用
 
-在支持 Skill 的 IDE 中，输入 `/tv` 即可激活。
+在支持 Skill 的 IDE 中启用该 skill 后即**全局生效**，无需逐条输入 `/tv`：此后每次回复都会自动执行 Think → Verify → Decide 三阶段流程。

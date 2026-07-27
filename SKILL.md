@@ -1,11 +1,11 @@
 ---
 name: tv
-description: 仅当用户显式发送 /tv 时才启动一轮 TV 流程（Think-Verify-Decide ... Output）；未触发时允许普通回复，但禁止输出任何 TV 阶段标签。
+description: 启用后全局生效，无需显式 /tv：对每一次回复都执行一轮 TV 流程（Think-Verify-Decide ... Output）并输出阶段标签。
 ---
 
 # Think-Then-Verify
 
-仅当且仅当当前用户消息显式包含 `/tv` 指令时，才允许启动一轮 Think-Verify-Decide ... Output 流程。除该触发外（包括系统自动续写、空消息续调、内部补调），一律不得新开 TV 流程，也不得输出 `Think - N`、`Verify - N`、`Decide - N`、`=== 最终回答 ===`；但若当前轮已由 `/tv` 合法启动，允许续写该轮内容；未触发时允许按普通对话方式直接回复。每阶段为独立**任务**；`=== 最终回答 ===` 之前内容均为思考过程。整个流程必须以已验证证据推进，禁止基于猜测进行推导、分支、回退或输出。
+本 skill 一经启用即**全局生效**：对每一次回复都执行一轮 Think-Verify-Decide ... Output 流程，无需用户逐条发送 `/tv`。启用后每次回复都必须走完整流程，并输出阶段标签 `Think - N`、`Verify - N`、`Decide - N`、`=== 最终回答 ===`。平台因窗口长度触发的自动续写、空消息续调、系统内部补调，均视为对当前轮的续写，仍在本流程约束内。每阶段为独立**任务**；`=== 最终回答 ===` 之前内容均为思考过程。整个流程必须以已验证证据推进，禁止基于猜测进行推导、分支、回退或输出。
 
 流程记号统一：`Think-Verify-Decide ... Output`。其中 `...` 表示经 Decide 决策后进入下一轮 Think 或进入 Output。
 
@@ -78,7 +78,7 @@ rules:
 gate_checklist:
   triggers:
     - id: G01
-      desc: 进入 Think #1 前必须检测到 /tv 触发
+      desc: 进入 Think #1 前确认本 skill 已启用（启用后全局生效，无需 /tv 触发）
   file_ops:
     - id: G02
       desc: 列出/收集规则前必须先读取 .tv/〔conv〕/rules.yml
@@ -132,10 +132,10 @@ gate_checklist:
 
 以下门控规则**必须**在流程执行时严格遵守。每次创建 `rules.yml` 时，agent 应将门控清单写入文件的 `gate_checklist` 字段（仅包含 id 和 desc，不含状态）。
 
-### G01：触发检测
+### G01：启用确认
 - **时机**：进入 Think #1 前
-- **条件**：必须检测到用户消息显式包含 `/tv`
-- **违反后果**：立即中止未授权轮次，不得推进任何阶段
+- **条件**：确认本 skill 已启用；启用后对每次回复全局生效，无需检测 `/tv`
+- **违反后果**：未启用时不进入 TV 流程，按普通对话回复
 
 ### G02：规则文档读取（收集规则前）
 - **时机**：列出/收集规则前
@@ -181,7 +181,7 @@ gate_checklist:
 <a id="boundary-first-execution"></a>
 ### BC01：首次执行（rules.yml 不存在）
 
-**场景**：首次触发 `/tv` 时，`.tv/〔conv〕/rules.yml` 文件尚不存在。
+**场景**：skill 启用后首次执行 TV 流程时，`.tv/〔conv〕/rules.yml` 文件尚不存在。
 
 **处理流程**：
 1. 检测到 `.tv/〔conv〕/rules.yml` 不存在时，**不视为门控违反**
@@ -199,7 +199,7 @@ gate_checklist:
    gate_checklist:
      triggers:
        - id: G01
-         desc: 进入 Think #1 前必须检测到 /tv 触发
+         desc: 进入 Think #1 前确认本 skill 已启用（启用后全局生效，无需 /tv 触发）
      file_ops:
        - id: G02
          desc: 列出/收集规则前必须先读取 .tv/〔conv〕/rules.yml
@@ -302,15 +302,13 @@ gate_checklist:
 - 遇到"看起来像猜测"的信息 → 必须向用户确认后才能使用
 
 <a id="section-trigger-and-stop"></a>
-## 触发与停止
+## 启用与生效
 
-- 仅当用户消息显式包含 `/tv` 时，允许开启一轮新的 TV 流程（Think-Verify-Decide ... Output）
-- 若当前消息不包含 `/tv`，必须停止 TV 流程输出：不得输出 `Think - N`、`Verify - N`、`Decide - N`、`=== 最终回答 ===`；允许普通回复，且普通回复中同样禁止出现上述标签
-- 普通回复中不得输出上述标签作为流程控制标记；不得通过换行、前后缀、Markdown 包裹等方式规避该限制
-- 若仅为正文中的引用、讨论或示例而出现上述字面字符串，不视为阶段标签输出
-- 平台因窗口长度触发的自动续写、空消息续调、系统内部补调，均不得视为新的 `/tv` 触发；但若当前轮已由 `/tv` 合法启动，允许续写该轮内容
-- 单轮 TV 流程完成后，下一轮必须等待用户再次显式输入 `/tv`
-- 若 agent 未经 `/tv` 触发而自主开启新一轮流程，视为触发违规：必须立即中止该次未授权新开轮，不得继续推进该未授权轮的任何阶段；不影响已由 `/tv` 合法启动且尚未完成的当前轮续写
+- 本 skill 一经启用即**全局生效**：对每一次回复都执行一轮完整的 TV 流程（Think-Verify-Decide ... Output），无需用户逐条发送 `/tv`
+- 启用后每次回复都必须输出阶段标签 `Think - N`、`Verify - N`、`Decide - N`、`=== 最终回答 ===`，并走完整流程
+- 平台因窗口长度触发的自动续写、空消息续调、系统内部补调，均视为对当前轮的续写，仍在本流程约束内
+- 每一次回复各自构成独立的一轮 TV 流程；上一轮结束不影响下一轮，下一轮回复重新从 Think #1 开始
+- 若正文中仅为引用、讨论或示例而出现上述字面字符串，不视为阶段标签输出
 
 ## 任务驱动工作流程
 
@@ -331,10 +329,17 @@ gate_checklist:
 | Claude Code | 内置 Task 管理系统 |
 | Cursor（1.2+） | Agent Planning to-do list |
 | VS Code Copilot（Agent 模式） | Plan agent + todo list |
+| Kiro | 内置 task list（todo_list） |
+| Windsurf Cascade | Planning Mode 实现计划 checklist |
+| OpenAI Codex | plan 能力（CLI / IDE 扩展 / App） |
+| Google Antigravity | agent-first 任务分派 / 任务列表 |
+| Cline | Plan/Act 模式任务清单 |
+| Grok Build（xAI CLI） | 内置 todo_write 工具 + plan mode |
+| Kimi Code | 多步任务规划（terminal-first agent） |
 
 ### 降级策略：tasks.md 单文档
 
-环境不支持 task list 时（Kiro Vibe、DeepSeek TUI、纯对话终端等），agent 创建 `.tv/〔conv〕/tasks.md` 临时文件，一次性列出全部任务。每完成/跳过一个任务时**同步标记**。
+环境不支持 task list 时（DeepSeek TUI、纯对话终端等），agent 创建 `.tv/〔conv〕/tasks.md` 临时文件，一次性列出全部任务。每完成/跳过一个任务时**同步标记**。
 
 > 🔴 **创建硬门控**：只要本轮采用 tasks.md 方式，进入 Think #1 前必须先确认 `.tv/〔conv〕/tasks.md` 已创建；若不存在，必须立即创建后再继续。
 
@@ -380,8 +385,8 @@ Decide 可将后续轮次均标记为`skipped`，直接进入 Output。
 7. **上限 3 次**：Think → Verify → Decide 流程最多执行 3 次；未执行轮次标记 `skipped`。
 8. **Output 唯一**：全流程仅 1 个 Output task，必须是最后一个。
 9. **tasks.md 存在校验**：采用 tasks.md 方式时，每次任务推进前都必须确认 `.tv/〔conv〕/tasks.md` 存在；缺失则先补建并回填状态，再允许推进。
-10. **触发硬门控**：进入 Think #1 前必须满足 `/tv` 触发条件；具体判定、合法续写与禁止事项参见 [触发与停止](#section-trigger-and-stop)。
-11. **违规即中止**：未授权新开轮的中止范围与边界参见 [触发与停止](#section-trigger-and-stop)；不得与该节规则冲突。
+10. **全局生效**：skill 启用后对每次回复都执行一轮完整 TV 流程，无需 `/tv` 触发；具体生效范围与续写规则参见 [启用与生效](#section-trigger-and-stop)。
+11. **每轮独立**：每次回复各自构成独立的一轮流程，从 Think #1 开始，不复用上一轮的任务与状态。
 
 ### 阶段标签输出（思考过程）
 
