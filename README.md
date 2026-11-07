@@ -1,114 +1,41 @@
-# /tv — Think-Then-Verify
+# Think-Then-Verify
 
-用户主动调用一次 `/tv` 后，在当前对话持续执行 Think → Verify → Decide → Output，核验流程、实际行为、授权与证据，直到用户显式关闭。
-
-## 安装
-
-将 `SKILL.md` 复制到对应 IDE 的 skills 目录：
-
-### VS Code（GitHub Copilot）
-
-```bash
-mkdir -p .copilot/skills/tv
-cp SKILL.md .copilot/skills/tv/SKILL.md
-```
-
-或用户级安装：
-
-```bash
-mkdir -p ~/.copilot/skills/tv
-cp SKILL.md ~/.copilot/skills/tv/SKILL.md
-```
-
-### Claude Code
-
-```bash
-mkdir -p .claude/skills/tv
-cp SKILL.md .claude/skills/tv/SKILL.md
-```
-
-或用户级安装：
-
-```bash
-mkdir -p ~/.claude/skills/tv
-cp SKILL.md ~/.claude/skills/tv/SKILL.md
-```
-
-### Cursor
-
-Cursor 自 2.4 版本起支持 Agent Skills（[官方文档](https://cursor.com/docs/context/skills)）。
-
-```bash
-mkdir -p .cursor/skills/tv
-cp SKILL.md .cursor/skills/tv/SKILL.md
-```
-
-或用户级安装：
-
-```bash
-mkdir -p ~/.cursor/skills/tv
-cp SKILL.md ~/.cursor/skills/tv/SKILL.md
-```
-
-> Cursor 也兼容 `.agents/skills/` 目录。
-
-### Kiro
-
-```bash
-mkdir -p .kiro/skills/tv
-cp SKILL.md .kiro/skills/tv/SKILL.md
-```
-
-或用户级安装：
-
-```bash
-mkdir -p ~/.kiro/skills/tv
-cp SKILL.md ~/.kiro/skills/tv/SKILL.md
-```
-
-### DeepSeek TUI
-
-```bash
-mkdir -p .deepseek/skills/tv
-cp SKILL.md .deepseek/skills/tv/SKILL.md
-```
-
-或用户级安装：
-
-```bash
-mkdir -p ~/.deepseek/skills/tv
-cp SKILL.md ~/.deepseek/skills/tv/SKILL.md
-```
+TV 让 AI 持续保持任务主线和核心约束，在长上下文、恢复及局部工作完成后重新对齐。无法在规则和授权范围内达成目标时，明确说明不能完成的部分及原因。答复只保留帮助读者理解、判断或行动的信息。
 
 ## 使用
 
-1. 在当前对话主动调用一次 `/tv`，可在命令后附带任务。
-2. 启用后，后续用户回合自动执行流程；上下文恢复和任务结束保持启用状态。
-3. 使用 `/tv off`、`/tv 关闭` 或明确要求关闭 TV 流程，结束当前对话中的启用状态。新对话默认关闭。
+完整规范保存在单个 [`SKILL.md`](SKILL.md) 中，不绑定 AI 软件、模型、SDK、操作系统或项目目录，不依赖额外设备。
 
-安装、读取技能和在示例中提到 `/tv` 不会启用流程。
+- 真实用户调用 `/tv` 或明确启用后，在当前会话持续生效。
+- `/tv off` 或明确关闭立即停止，优先于状态、能力与任务检查。
+- 复制技能文件不代表门限生效；使用前按唯一标识检查并验证对应宿主适配器。
 
-## 执行前提
+## 流程
 
-安装文件后，须按 `SKILL.md` 检查并建立适用宿主的运行时能力：
+跨回合保留主目标、整体完成条件、核心约束、进度和未完成事项。采用按事件触发的循环：
 
-- 唯一逻辑守卫：`think-then-verify-process-gate`。先在生产拦截关闭时验证必需能力，再按宿主信任要求激活并回读实际状态。
-- 宿主任务接口：支持创建、更新和回读任务状态。
-- 固定会话注册表与状态目录：切换项目仍能定位原会话记录。
-- 输出链路：发布前检查，以及由可信宿主完成事件保存交付回执、更新 Output 任务。
+1. 恢复和对齐主线。
+2. 核对下一步与目标的关系、约束及授权后行动。
+3. 记录真实结果，更新有关进度并返回主线。
+4. 输出前核验目标覆盖、规则与事实、信息用途。
 
-用户启用意图与 Hook 激活分开记录。初次验证缺少能力时，生产拦截保持未激活；运行中能力失效时进入维护状态。两种情况均报告阻塞、暂停原任务，保留显式关闭、必要诊断和已授权的适配器维护入口。关闭先于能力和阶段检查，即使回合标识缺失或状态损坏也须落实，不能按旧启用值自动恢复。技能不提供任务文件或口头自查的替代执行方式。
+Think、Verify、Decide 是上述循环中的判断职责，不要求每回合预建十个任务或机械执行三轮。未变化的检查可复用，依赖变化时只重做有关核验。同一缺口在条件未变时最多三次自动修正或恢复无进展即停止该循环；不能把失败改成成功或清空主目标。
 
-每个原生入口以 `think-then-verify-process-gate/<宿主事件名>` 唯一命名；名称跨安装目录和重复注册保持稳定，配置写入前检查冲突。Codex 用 `statusMessage` 保存名称，宿主可能显示运行标签。
+有副作用或无法判定的动作须有绑定当前目标、约束、证据、完整参数和真实授权来源的一次性许可。只读核查仍遵守访问与保密规则。目标的完成条件不冒充动作前置条件，局部成功不代表整体完成。
 
-Hook 注册数量尽量少，并覆盖用户控制、工具执行前、工具执行后、答复发布前及交付结果五项职责。宿主可在同一入口承担多项职责，因此不固定为五个 Hook。恢复检查复用必经入口，结束或中断通知仅在现有交付入口覆盖不足时增加；宿主任务接口不计入 Hook 数量。每个入口及其绕过路径须实测，覆盖不完整时不能激活生产拦截。
+## Hook 与适配
 
-## 保障范围
+唯一逻辑标识为 `think-then-verify-process-gate`，原生入口命名为 `think-then-verify-process-gate/<宿主实际事件名>`。入口尽量少，覆盖用户与恢复、动作前拦截、动作后取证、输出核验与修正四项职责；职责数量不决定 Hook 数量。
 
-本仓库提供单文件技能规范，复制 `SKILL.md` 不代表 Hook 已安装或生效。运行时适配器须按宿主实际接口建立并验证；宿主无法提供必需拦截或回调能力时，该环境不能执行此流程。
+适配器提供持久化恢复、版本校验及局部更新、精确动作许可、可信回执和输出核验。程序检查可观察的调用与记录；目标关系、规则理解、证据充分性和文字用途仍须 AI 语义判断。
 
-核验面向可观察的流程、行为和证据；阶段标签与任务勾选不能代替执行证明，也不能证明内部思考充分或所有结论正确。
+宿主有经过实测的显示前拦截能力时才能声明显示前门限；显示后收尾只能核验并要求纠正，不能撤回已显示正文或证明交付。隔离测试、登记、信任、启用和当前会话实际触发分别验证。
 
-## 静默运行
+本仓库随技能提供 [Codex 适配器](adapters/codex/README.md)、安装器和完整仿真。技能规范保持宿主无关，具体能力按对应宿主验证。私有会话数据、批准记录及配置不随包分发。
 
-条件核对、确认范围检查、进度推进、统计及成功回执默认只写内部记录，答复直接展示任务结果。用户查询时才展示相关流程摘要。可恢复的问题先自动修复；真正需要用户决策或授权时才提问。静默不降低能力验证、核验或业务确认门限，不能隐藏失败和影响结果的未知事项。技能不控制宿主工具运行界面的显示。
+```bash
+python3 adapters/codex/simulate.py --doc-system <文档系统包目录> --report-dir <测试报告目录>
+python3 adapters/codex/install.py
+```
+
+仿真通过后安装；安装器完成备份并登记四个禁用入口，由宿主审阅并启用当前命令。缺回执不会写成成功，已如实说明缺口的阻塞或部分完成答复可以结束，待决状态继续保留。
