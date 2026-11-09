@@ -15,7 +15,7 @@ import sys
 import tempfile
 
 GATE_ID = "think-then-verify-process-gate"
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 CONTRACT_VERSION = "goal-alignment-v1"
 ROOT = Path(__file__).resolve().parent
 
@@ -676,6 +676,16 @@ class Guard:
         args = self._shell_args(command)
         if len(args) < 3 or not re.fullmatch(r'python(?:3(?:\.\d+)?)?', Path(args[0]).name):
             return False
+        doc_workflow = Path.home() / '.agent-docs/scripts/doc-workflow.py'
+        if Path(args[1]).resolve() == doc_workflow.resolve():
+            # Repair controls only inspect or record verified documentation. They
+            # must remain available before business output can be accepted.
+            return ((len(args) == 5 and args[2:4] == ['inspect', '--project']
+                     and Path(args[4]).is_absolute())
+                    or (len(args) == 9 and args[2:4] == ['complete', '--project']
+                        and Path(args[4]).is_absolute() and args[5] == '--source'
+                        and re.fullmatch(r'[0-9a-f]{64}', args[6]) is not None
+                        and args[7] == '--reason' and bool(args[8].strip())))
         if Path(args[1]).resolve() == self.root / 'host_receipts.py':
             return (len(args) == 8 and args[2:5] == ['--session', session, '--evidence-id']
                     and args[6] == '--receipt-file' and bool(args[5])
@@ -909,6 +919,12 @@ class Guard:
 
     def _stop(self, event, state):
         t = state['turn'];out = t['output'];v = t.get('verification', {})
+        terminal = {'continue': False, 'stopReason': 'TV 收尾核验未通过且恢复次数已耗尽；本回合按未核验终止，保留缺口，不能记录成功。'}
+        # A native turn has one recovery budget, independent of mutable gap
+        # hashes, candidate wording, new reads and newly missing callbacks.
+        if t.get('stop_recovery_halted'):
+            t['closure'] = 'halted_unverified'
+            return terminal
         text = event.get('last_assistant_message')
         matching = isinstance(text, str) and hashlib.sha256(text.encode()).hexdigest() == out.get('candidate_sha256')
         unresolved = sorted(t['pending'])
@@ -925,7 +941,9 @@ class Guard:
                          'goals': self._mainline_sha(state)}) if unresolved else self._gap_key(state))
         gaps = state.setdefault('stop_gaps', {})
         gaps[token] = gaps.get(token, 0) + 1
-        if gaps[token] > 3:
+        t['stop_recovery_attempts'] = t.get('stop_recovery_attempts', 0) + 1
+        if t['stop_recovery_attempts'] > 3:
+            t['stop_recovery_halted'] = True
             t['closure'] = 'halted_unverified'
             return {'continue': False, 'stopReason': 'TV 收尾核验未通过且重复恢复没有进展；本回合按未核验终止，保留缺口，不能记录成功。'}
         reason = (f'TV_RESUME_{secrets.token_hex(8)}：静默补齐当前回合 {t["id"]} 的规则读取、实际工具回执、'
@@ -939,7 +957,13 @@ class Guard:
         if not isinstance(session, str) or not session:
             raise ValueError('Missing trusted host session ID')
         with self.locked():
-            switch = command_switch(event.get('prompt')) if name == 'UserPromptSubmit' else None
+            prompt = event.get('prompt')
+            # Host-injected Hook envelopes are recovery input, never a new
+            # human authorization or an activation/deactivation command.
+            hook_resume = (name == 'UserPromptSubmit' and isinstance(prompt, str)
+                           and re.fullmatch(r'(?:\s*<hook_prompt\b[^>]*>.*?</hook_prompt>\s*)+',
+                                            prompt, re.S) is not None)
+            switch = command_switch(prompt) if name == 'UserPromptSubmit' and not hook_resume else None
             if switch is False:
                 return self.disable(session, event)
             control = self.control(session)
@@ -956,7 +980,7 @@ class Guard:
             self._upgrade(state, path)
             if name == 'UserPromptSubmit':
                 prompt = event.get('prompt')
-                if digest(prompt) in state.get('continuations', {}):
+                if hook_resume or digest(prompt) in state.get('continuations', {}):
                     atomic_json(path, state)
                     return self._context(name, state)
                 host_turn = event.get('turn_id')

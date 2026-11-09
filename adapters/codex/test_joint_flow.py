@@ -166,6 +166,32 @@ class JointFlow(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.g.handle(self.event('PreToolUse',tool_name='Bash',tool_input={'command':'cat src.txt'},tool_use_id=call))
 
+    def test_forwarded_joint_repair_chain_terminates_without_new_authorization(self):
+        self.g.handle(self.event('PreToolUse',tool_name='Bash',tool_input={'command':'cat src.txt'},tool_use_id='lost'))
+        for i in range(4):
+            doc_event=self.event('Stop');doc_event['turn_id']='host-'+str(i)
+            docs=self.doc.hook(doc_event)
+            tv=self.g.handle(self.event('Stop',last_assistant_message='未核验'))
+            if i<3:
+                self.assertEqual(docs['decision'],'block')
+                self.assertEqual(tv['decision'],'block')
+                forwarded=self.event('UserPromptSubmit',prompt=
+                    '<hook_prompt hook_run_id="doc">'+docs['reason']+'</hook_prompt>'+
+                    '<hook_prompt hook_run_id="tv">'+tv['reason']+'</hook_prompt>')
+                forwarded['turn_id']='synthetic-'+str(i)
+                self.g.handle(forwarded)
+                self.g.handle(self.event('PreToolUse',tool_name='Bash',
+                    tool_input={'command':'cat src.txt'},tool_use_id='lost-'+str(i)))
+            else:
+                self.assertIs(docs.get('continue'),False)
+                self.assertIs(tv.get('continue'),False)
+        state=self.state()
+        self.assertEqual(state['turn']['id'],'u1')
+        self.assertEqual(state['turn']['closure'],'halted_unverified')
+        self.assertIn('lost',state['turn']['pending'])
+        self.assertFalse(self.doc.state_path(self.project).exists())
+        self.assertEqual((self.project/'src.txt').read_text(),'one\n')
+
 class SubprocessGuard:
     """Run exact pinned commands and management CLI in fresh processes."""
     def __init__(self, root):
@@ -201,6 +227,9 @@ class NativeProtocolJoint(unittest.TestCase):
     dispatch=JointFlow.dispatch
     finish=JointFlow.finish
     cli=JointFlow.cli
+
+    def test_joint_repair_chain_through_exact_pinned_hook_commands(self):
+        JointFlow.test_forwarded_joint_repair_chain_terminates_without_new_authorization(self)
 
     def test_full_workflow_through_exact_pinned_hook_commands(self):
         JointFlow.test_complete_read_write_review_commit_and_both_stops(self)

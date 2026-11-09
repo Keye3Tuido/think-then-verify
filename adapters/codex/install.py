@@ -13,7 +13,7 @@ import tempfile
 HERE=Path(__file__).resolve().parent
 FILES=('README.md','install.py','process_gate.py','register_gate.py','simulate.py','test_process_gate.py',
        'test_goal_alignment.py','test_activation_migration.py','test_review_regressions.py',
-       'test_host_lifecycle.py','test_joint_flow.py','test_installation.py',
+       'test_host_lifecycle.py','test_bounded_recovery.py','test_joint_flow.py','test_installation.py',
        'delegate_session.py','test_delegated_binding.py','host_receipts.py','test_host_receipts.py')
 
 def install(codex_home):
@@ -32,7 +32,7 @@ def install(codex_home):
             else:
                 __import__('tomllib').loads(data)
     result=subprocess.run([sys.executable,'-m','unittest','test_process_gate','test_goal_alignment',
-        'test_activation_migration','test_review_regressions','test_host_lifecycle','test_delegated_binding','test_host_receipts','-q'],
+        'test_activation_migration','test_review_regressions','test_host_lifecycle','test_bounded_recovery','test_delegated_binding','test_host_receipts','-q'],
         cwd=HERE,text=True,capture_output=True)
     if result.returncode:
         raise ValueError('Adapter self-test failed before installation:\n'+result.stdout+result.stderr)

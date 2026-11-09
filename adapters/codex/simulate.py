@@ -18,7 +18,7 @@ def run(report_dir, doc_system=None):
     suites=[
         ('tv', [sys.executable,'-m','unittest','test_process_gate','test_goal_alignment',
                 'test_activation_migration','test_review_regressions','test_host_lifecycle',
-                'test_installation','test_delegated_binding','test_host_receipts','-v'])]
+                'test_bounded_recovery','test_installation','test_delegated_binding','test_host_receipts','-v'])]
     if doc_system is not None:
         root=Path(doc_system).expanduser().resolve()
         for script in ('selftest.py','doc-lint-consistency.py','doc-workflow.py'):
